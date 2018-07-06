@@ -11,16 +11,15 @@ import java.net.InetAddress;
 import java.net.Socket;
 
 public class Client {
-    private Logger logger = LoggerFactory.getLogger(Client.class);
+    private static Logger logger = LoggerFactory.getLogger(Client.class);
     private InetAddress hostname;
     private int port;
     private User user;
     private Socket socket;
-    private InputStream is;
-    private OutputStream os;
-    private ObjectOutputStream oos;
-    private ObjectInputStream ois;
-
+    private OutputStream outputStream;
+    private InputStream inputStream;
+    private ObjectOutputStream objectOutputStream;
+    private ObjectInputStream objectInputStream;
 
     public Client(InetAddress hostname, int port, User user) {
         this.hostname = hostname;
@@ -28,49 +27,48 @@ public class Client {
         this.user = user;
     }
 
-
     public void start() {
         connect();
         new ClientHandler().start();
         logger.info("Sockets <in> and <out> ready!");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            try {
-                String text = reader.readLine();
-                switch (text) {
-                    case "/disconnect":
-                        disconnect();
-                        break;
-                    case "/connect":
-                        connect();
-                        break;
-                    default:
-                        send(new Message(user, MessageType.MESSAGE, text));
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-
-    public synchronized void send(Message message) {
         try {
-            oos.writeObject(message);
-            oos.flush();
+            String text = reader.readLine();
+            switch (text) {
+                case "/disconnect":
+                    disconnect();
+                    break;
+                case "/connect":
+                    connect();
+                    break;
+                default:
+                    if(!text.isEmpty()) {
+                        send(new Message(user, MessageType.MESSAGE, text));
+                    }
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /* This method is used to connect to server and send a connecting message */
+    public synchronized void send(Message message) {
+        try {
+            objectOutputStream.writeObject(message);
+            objectOutputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void connect() {
         try {
             socket = new Socket(hostname, port);
-            os = socket.getOutputStream();
-            is = socket.getInputStream();
-            oos = new ObjectOutputStream(os);
-            ois = new ObjectInputStream(is);
+            outputStream = socket.getOutputStream();
+            inputStream = socket.getInputStream();
+            objectOutputStream = new ObjectOutputStream(outputStream);
+            objectInputStream = new ObjectInputStream(inputStream);
 
-            oos.flush();
+            objectOutputStream.flush();
             logger.info("Connection accepted " + socket.getInetAddress() + ":" + socket.getPort());
         } catch (IOException e) {
             logger.error("Could not Connect");
@@ -79,31 +77,30 @@ public class Client {
         send(createMessage);
     }
 
-    /* This method is used to send a disconnecting message */
     public synchronized void disconnect() {
         if (!socket.isConnected()) {
-            logger.error("The client is not connected to the server");
+            logger.error("The client inputStream not connected to the server");
         } else {
             Message createMessage = new Message(user, MessageType.DISCONNECTED);
             send(createMessage);
-            closeAllConn();
+            closeAllConnections();
         }
 
     }
 
-    public void closeAllConn() {
+    public void closeAllConnections() {
         try {
-            if (ois != null) {
-                ois.close();
+            if (objectInputStream != null) {
+                objectInputStream.close();
             }
-            if (oos != null) {
-                oos.close();
+            if (objectOutputStream != null) {
+                objectOutputStream.close();
             }
-            if (is != null) {
-                is.close();
+            if (inputStream != null) {
+                inputStream.close();
             }
-            if (os != null) {
-                os.close();
+            if (outputStream != null) {
+                outputStream.close();
             }
             if (socket.isConnected()) {
                 socket.close();
@@ -114,17 +111,16 @@ public class Client {
 
     }
 
-
     public class ClientHandler extends Thread {
         @Override
         public void run() {
-            logger.info(this.getClass().getName() + " is started in " + Thread.currentThread());
+            logger.info(this.getClass().getName() + " inputStream started in " + Thread.currentThread());
             try {
                 while (true) {
                     Message message = null;
-                    message = (Message) ois.readObject();
+                    message = (Message) objectInputStream.readObject();
                     if (message != null) {
-                        System.out.println(message.getMessageType() + "__Message recieved from "+ message.getMessageOwnerName()+ ": " + message.getMessage());
+                        System.out.println(message.getMessageType() + "__Message recieved from " + message.getMessageOwnerName() + ": " + message.getMessage());
 
                     }
                 }

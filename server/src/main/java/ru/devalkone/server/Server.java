@@ -16,8 +16,8 @@ import java.util.HashSet;
 import static ru.devalkone.message.MessageType.*;
 
 public class Server {
+    private static Logger logger = LoggerFactory.getLogger(Server.class);
     private static final HashMap<String, User> names = new HashMap<>();
-    static Logger logger = LoggerFactory.getLogger(Server.class);
     private static HashSet<ObjectOutputStream> writers = new HashSet<>();
     private static ArrayList<User> users = new ArrayList<>();
     private final int PORT;
@@ -27,7 +27,7 @@ public class Server {
     }
 
     public void start() throws IOException {
-        logger.info("The chat server is running.");
+        logger.info("The chat server inputStream running.");
         ServerSocket listener = new ServerSocket(PORT);
         try {
             while (true) {
@@ -44,10 +44,11 @@ public class Server {
         private String name;
         private Socket socket;
         private User user;
-        private ObjectOutputStream oos;
-        private ObjectInputStream ois;
-        private InputStream is;
-        private OutputStream os;
+        private OutputStream outputStream;
+        private InputStream inputStream;
+        private ObjectOutputStream objectOutputStream;
+        private ObjectInputStream objectInputStream;
+
 
         public Handler(Socket socket) {
             this.socket = socket;
@@ -56,18 +57,19 @@ public class Server {
         public void run() {
             logger.info("Attempting to connect a user...");
             try {
-                os = socket.getOutputStream();
-                is = socket.getInputStream();
-                oos = new ObjectOutputStream(os);
-                ois = new ObjectInputStream(is);
-                Message firstMessage = (Message) ois.readObject();
+                outputStream = socket.getOutputStream();
+                inputStream = socket.getInputStream();
+                objectOutputStream = new ObjectOutputStream(outputStream);
+                objectInputStream = new ObjectInputStream(inputStream);
+                Message firstMessage = (Message) objectInputStream.readObject();
                 checkDuplicateUsername(firstMessage);
-                writers.add(oos);
+                writers.add(objectOutputStream);
                 sendNotification(firstMessage);
                 addToList();
 
+                //Слушаем входящий поток
                 while (socket.isConnected()) {
-                    Message inputmsg = (Message) ois.readObject();
+                    Message inputmsg = (Message) objectInputStream.readObject();
                     if (inputmsg != null) {
                         logger.info(inputmsg.getMessageType() + " - " + inputmsg.getMessageOwnerName() + ": " + inputmsg.getMessage());
                         switch (inputmsg.getMessageType()) {
@@ -78,8 +80,7 @@ public class Server {
                                 addToList();
                                 break;
                             case DISCONNECTED:
-//                                writers.remove(oos);
-                                removeFromList();
+                                closeConnections();
                                 break;
                         }
                     }
@@ -95,9 +96,11 @@ public class Server {
 
         }
 
-
+        /*
+        Проверяет на никнейм на уникальность
+         */
         private synchronized void checkDuplicateUsername(Message firstMessage) throws DuplicateUsernameException {
-            logger.info(firstMessage.getMessageOwnerName() + " is trying to connect");
+            logger.info(firstMessage.getMessageOwnerName() + " inputStream trying to connect");
             if (!names.containsKey(firstMessage.getMessageOwnerName())) {
                 this.name = firstMessage.getMessageOwnerName();
                 user = new User();
@@ -106,8 +109,8 @@ public class Server {
                 names.put(name, user);
                 logger.info(name + " has been added to the list");
             } else {
-                logger.error(firstMessage.getMessageOwnerName() + " is already connected");
-                throw new DuplicateUsernameException(firstMessage.getMessageOwnerName() + " is already connected");
+                logger.error(firstMessage.getMessageOwnerName() + " inputStream already connected");
+                throw new DuplicateUsernameException(firstMessage.getMessageOwnerName() + " inputStream already connected");
             }
         }
 
@@ -127,7 +130,6 @@ public class Server {
             write(msg);
         }
 
-        //For displaying that a user has joined the server
         private void addToList() throws IOException {
             String text = "Welcome, You have now joined the server!";
             Message msg = new Message("SERVER", CONNECTED, text);
@@ -143,7 +145,9 @@ public class Server {
             logger.debug("removeFromList() method Exit");
         }
 
-        //Once a user has been disconnected, we close the open connections and remove the writers
+        /*
+        Закрывает открытые потоки и удаляет из списка юзеров
+         */
         private synchronized void closeConnections() {
             logger.debug("closeConnections() method Enter");
             logger.info("HashMap names:" + names.size() + " writers:" + writers.size() + " usersList size:" + users.size());
@@ -155,19 +159,19 @@ public class Server {
                 users.remove(user);
                 logger.info("User object: " + user + " has been removed!");
             }
-            if (oos != null) {
-                writers.remove(oos);
+            if (objectOutputStream != null) {
+                writers.remove(objectOutputStream);
                 logger.info("Writer object: " + user + " has been removed!");
             }
             try {
-                if (is != null) {
-                    is.close();
+                if (inputStream != null) {
+                    inputStream.close();
                 }
-                if (os != null) {
-                    os.close();
+                if (outputStream != null) {
+                    outputStream.close();
                 }
-                if (ois != null) {
-                    ois.close();
+                if (objectInputStream != null) {
+                    objectInputStream.close();
                 }
                 removeFromList();
             } catch (IOException e) {
