@@ -60,8 +60,6 @@ public class Server {
                 is = socket.getInputStream();
                 oos = new ObjectOutputStream(os);
                 ois = new ObjectInputStream(is);
-
-
                 Message firstMessage = (Message) ois.readObject();
                 checkDuplicateUsername(firstMessage);
                 writers.add(oos);
@@ -80,7 +78,8 @@ public class Server {
                                 addToList();
                                 break;
                             case DISCONNECTED:
-                                addToList();
+//                                writers.remove(oos);
+                                removeFromList();
                                 break;
                         }
                     }
@@ -118,33 +117,30 @@ public class Server {
                 msg.setUsers(users);
                 msg.setOnlineCount(names.size());
                 writer.writeObject(msg);
-                writer.reset();
+                writer.flush();
             }
         }
 
-        private Message sendNotification(Message firstMessage) throws IOException {
+        private void sendNotification(Message firstMessage) throws IOException {
             String text = "has joined the chat.";
             Message msg = new Message(firstMessage.getMessageOwnerName(), NOTIFICATION, text);
             write(msg);
-            return msg;
         }
 
         //For displaying that a user has joined the server
-        private Message addToList() throws IOException {
+        private void addToList() throws IOException {
             String text = "Welcome, You have now joined the server!";
             Message msg = new Message("SERVER", CONNECTED, text);
             write(msg);
-            return msg;
         }
 
-        private Message removeFromList() throws IOException {
+        private void removeFromList() throws IOException {
             logger.debug("removeFromList() method Enter");
             String text = "has left the chat.";
             Message msg = new Message("SERVER", DISCONNECTED, text);
             msg.setUserlist(names);
             write(msg);
             logger.debug("removeFromList() method Exit");
-            return msg;
         }
 
         //Once a user has been disconnected, we close the open connections and remove the writers
@@ -177,7 +173,6 @@ public class Server {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
             logger.info("HashMap names:" + names.size() + " writers:" + writers.size() + " usersList size:" + users.size());
             logger.debug("closeConnections() method Exit");
         }

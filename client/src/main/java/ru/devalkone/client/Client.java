@@ -116,7 +116,6 @@ public class Client {
 
 
     public class ClientHandler extends Thread {
-        private Logger logger = LoggerFactory.getLogger(ClientHandler.class);
         @Override
         public void run() {
             logger.info(this.getClass().getName() + " is started in " + Thread.currentThread());
@@ -125,7 +124,8 @@ public class Client {
                     Message message = null;
                     message = (Message) ois.readObject();
                     if (message != null) {
-                        logger.debug("Message recieved:" + message.getMessage() + " MessageType:" + message.getMessageType() + "Name:" + message.getMessageOwnerName());
+                        System.out.println(message.getMessageType() + "__Message recieved from "+ message.getMessageOwnerName()+ ": " + message.getMessage());
+
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
