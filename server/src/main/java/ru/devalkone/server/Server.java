@@ -40,7 +40,7 @@ public class Server {
     }
 
     public class Handler extends Thread {
-        private Logger logger = LoggerFactory.getLogger(Handler.class);
+        private Logger logger;
         private String name;
         private Socket socket;
         private User user;
@@ -51,6 +51,7 @@ public class Server {
 
 
         public Handler(Socket socket) {
+            logger = LoggerFactory.getLogger(Handler.class);
             this.socket = socket;
         }
 
