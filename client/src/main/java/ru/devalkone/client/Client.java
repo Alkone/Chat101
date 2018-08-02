@@ -33,18 +33,22 @@ public class Client {
         logger.info("Sockets <in> and <out> ready!");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         try {
-            String text = reader.readLine();
-            switch (text) {
-                case "/disconnect":
-                    disconnect();
-                    break;
-                case "/connect":
-                    connect();
-                    break;
-                default:
-                    if(!text.isEmpty()) {
-                        send(new Message(user, MessageType.MESSAGE, text));
-                    }
+            String text = "";
+            while(true) {
+                text = reader.readLine();
+                switch (text) {
+                    case "/disconnect":
+                        disconnect();
+                        break;
+                    case "/connect":
+                        connect();
+                        break;
+                    default:
+                        if (!text.isEmpty()) {
+                            send(new Message(user, MessageType.MESSAGE, text));
+                        }
+                        break;
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
